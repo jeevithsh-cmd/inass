@@ -1,0 +1,87 @@
+# =============================================================================
+# ACF-XAI-FL — default configuration (values used for all results in the paper)
+# Every value below is quoted in Section 4 "Implementation Details" /
+# "Code Availability and Reproducibility" and in Algorithm 1.
+# =============================================================================
+
+experiment_name: acf_xai_fl_full
+
+# ----------------------------------------------------------------- reproducibility
+seeds: [42, 123, 456]          # three independent runs; results = mean ± std
+deterministic: true            # cudnn deterministic mode
+
+# ----------------------------------------------------------------- data
+data_root: ./data/BraTS2020/MICCAI_BraTS2020_TrainingData
+split_file: ./data/hospital_splits.json   # patient-level hospital + train/val/test assignment
+spatial_size: [160, 160, 128]  # volumes resized to 160 x 160 x 128
+cache_rate: 0.0                # MONAI CacheDataset fraction (raise if RAM allows)
+num_workers: 4
+
+# Heterogeneity setting used for the main results = "high"
+#   (Hospital A = T1ce, B = T2, C = FLAIR, D = all four modalities).
+# Table 7 stress test: low | medium | high | extreme   (see data.py: HETEROGENEITY_PRESETS)
+heterogeneity_level: high
+
+# ----------------------------------------------------------------- federation
+num_clients: 4                 # K
+num_rounds: 100                # T
+local_epochs: 5                # E   (T x E = 500 local epochs)
+batch_size: 4                  # B
+eval_every: 5                  # validation every n rounds (Figure 2 curve)
+
+# ----------------------------------------------------------------- optimisation
+optimizer: adam
+lr: 1.0e-4                     # local learning rate (eta)
+weight_decay: 1.0e-4
+grad_clip_norm: 1.0            # local gradient clipping threshold
+server_lr: 0.01                # eta_s (TSMC global update, Eq. 35)
+
+# ----------------------------------------------------------------- model
+backbone: resnet34_unet        # 3-D ResNet-34 encoder + U-Net decoder
+in_channels: 4                 # T1, T1ce, T2, FLAIR
+num_seg_classes: 3             # TC, WT, ET (BraTS region channels)
+num_grades: 3                  # Grade II / III / IV (Table 2)
+mmam_reduction: 16             # channel reduction ratio r in MMAM (Eqs. 15-17)
+
+# ----------------------------------------------------------------- loss weights (Eq. 43)
+lambda_dice: 0.5               # lambda_1
+lambda_cea: 0.1                # lambda_2
+lambda_proto: 0.05             # lambda_3
+lambda_dc: 0.01                # lambda_4  (deconfounding regulariser, Eq. 27)
+lambda_prox: 0.01              # lambda_5 / rho (proximal term)
+
+# ----------------------------------------------------------------- MDGP
+mdgp_hidden: 256               # 2-layer MLP modality classifier, 256 hidden units
+mdgp_alpha_mode: eq25          # eq25: alpha = 1 - exp(-Var(H));  sigmoid: alpha = sigmoid(Var(H)) (Alg. 1)
+
+# ----------------------------------------------------------------- TSMC
+tsmc_gamma: 0.9                # temporal EMA coefficient (Eq. 30)
+tsmc_momentum: 0.8             # server momentum mu (Eq. 34)
+
+# ----------------------------------------------------------------- CEA
+cea_embed_dim: 256
+cea_temperature: 0.07          # tau_e
+cea_queue_size: 256            # Q_max (negative queue)
+cea_proto_momentum: 0.9        # rho in Eq. 38
+
+# ----------------------------------------------------------------- FTPMB
+ftpmb_embed_dim: 256
+ftpmb_momentum: 0.9            # lambda in Eq. 42 (0 < lambda < 1)
+
+# ----------------------------------------------------------------- round-level Gaussian perturbation
+# See scripts/noise_config.py.  Applied ONCE per communication round to the
+# client model update (NOT DP-SGD).  No formal (epsilon, delta) budget is computed.
+noise_sigma: 0.01              # standard deviation sigma (variance 1e-4)
+noise_clip_C: 1.0              # C; noise std = sigma * C  (C = 1.0 -> std = sigma)
+noise_clip_update: false       # update not clipped; local gradients clipped at grad_clip_norm = 1.0
+
+# ----------------------------------------------------------------- ablation switches (Table 5)
+use_mmam: true
+use_mdgp: true
+use_tsmc: true
+use_cea: true
+use_ftpmb: true
+use_prox: true
+use_noise: true
+
+output_dir: ./outputs

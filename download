@@ -1,0 +1,5 @@
+outputs/
+data/BraTS2020/
+__pycache__/
+*.pt
+.venv/

@@ -1,0 +1,2 @@
+subject_id,grade
+# REPLACE: one row per BraTS20_Training_XXX subject with grade 2, 3 or 4 (369 rows)
